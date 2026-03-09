@@ -1,0 +1,1 @@
+g++ FILES/*.cpp OPERATIONS_HL/*.cpp main.cpp -I FILES -I OPERATIONS_HL -o custom_sdr
