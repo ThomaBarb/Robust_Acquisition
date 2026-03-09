@@ -2,31 +2,30 @@
 #include <vector>
 #include "iq_reader.h"
 #include "preprocessor.h"
-
-struct AcquisitionResult {
-    bool  found;
-    float doppler_hz;
-    int   code_phase_samples;
-    float peak_metric;
-};
-
-class PCPS; // forward declaration
+#include "../ACQUISITION/prn_generator.h"
+#include "../ACQUISITION/pcps.h"
 
 class Channel {
 public:
-    Channel(int prn, const SignalParameters& params);
+    Channel(int prn, const SignalParameters& params, const PCPSConfig& pcps_config);
 
     void process(const ProcessedEpoch& epoch);
-    int  prn() const;
+    int  prn()         const;
     bool is_acquired() const;
+    void run_acquisition(const ProcessedEpoch& epoch);
+
+    Channel(const Channel&)            = delete;
+    Channel& operator=(const Channel&) = delete;
 
 private:
-    int                prn_;
-    SignalParameters   params_;
-    std::vector<float> code_replica_;
-    AcquisitionResult  last_result_;
-    bool               acquired_;
+    int                        prn_;
+    SignalParameters           params_;
+    std::vector<float>         code_replica_;
+    PCPS                       pcps_;
+    AcquisitionResult          last_result_;
+    bool                       acquired_;
 
-    // will be replaced by PCPS instance once implemented
-    void run_acquisition(const ProcessedEpoch& epoch);
+    // Epoch accumulator for non-coherent integration
+    std::vector<ProcessedEpoch> epoch_buffer_;
+    int                         epochs_needed_;
 };

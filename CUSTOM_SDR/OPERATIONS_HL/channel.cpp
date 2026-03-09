@@ -1,12 +1,15 @@
 #include "channel.h"
 #include <cstdio>
 
-Channel::Channel(int prn, const SignalParameters& params)
-    : prn_(prn), params_(params), acquired_(false)
+Channel::Channel(int prn, const SignalParameters& params, const PCPSConfig& pcps_config)
+    : prn_(prn), params_(params), pcps_(params, pcps_config),
+      acquired_(false), epochs_needed_(pcps_config.non_coh_integrations)
 {
+    code_replica_ = PRNGenerator::generate_gps_l1ca(prn, params);
+    pcps_.set_local_code(code_replica_);   // precompute code FFT once
     last_result_ = {false, 0.0f, 0, 0.0f};
-    // code_replica_ will be filled by PRN generator once implemented
 }
+
 
 int Channel::prn() const {
     return prn_;
@@ -24,7 +27,18 @@ void Channel::process(const ProcessedEpoch& epoch) {
 }
 
 void Channel::run_acquisition(const ProcessedEpoch& epoch) {
-    // placeholder until PCPS is implemented
-    printf("[Channel PRN %d] running acquisition at t=%.3f s\n",
-           prn_, epoch.timestamp_s);
+    epoch_buffer_.push_back(epoch);
+
+    if ((int)epoch_buffer_.size() >= epochs_needed_) {
+        last_result_ = pcps_.search(epoch_buffer_);
+        epoch_buffer_.clear();
+
+        if (last_result_.found) {
+            acquired_ = true;
+            printf("[Channel PRN %d] ACQUIRED — doppler=%.1f Hz code_phase=%d metric=%.2f\n",
+                   prn_, last_result_.doppler_hz,
+                   last_result_.code_phase_samples,
+                   last_result_.peak_metric);
+        }
+    }
 }

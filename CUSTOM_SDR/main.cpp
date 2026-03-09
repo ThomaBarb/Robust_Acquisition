@@ -10,7 +10,13 @@ int main()
     SignalParameters params;
     params.sampling_freq_hz = 4000000.0;
     params.center_freq_hz   = 1575420000.0;
-    params.epoch_length_ms  = 1000;
+    params.epoch_length_ms  = 1;
+
+    PCPSConfig pcps_config;
+    pcps_config.doppler_max_hz       = 10000.0f;
+    pcps_config.doppler_step_hz      = 500.0f;
+    pcps_config.detection_threshold  = 10.f;
+    pcps_config.non_coh_integrations = 1;
 
     // Open binary file
     std::string path = 
@@ -24,9 +30,11 @@ int main()
     }
 
     Preprocessor  preprocessor(params);
-    ChannelManager channel_manager(params);
-    channel_manager.add_channel(1);
-    channel_manager.add_channel(5);
+    ChannelManager channel_manager(params, pcps_config);
+    std::vector<int> prn_channels = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+    for (int& prn_: prn_channels) {
+        channel_manager.add_channel(prn_);
+    }
 
     RawEpoch       raw;
     ProcessedEpoch epoch;
@@ -38,9 +46,9 @@ int main()
         channel_manager.process(epoch);
 
 
-        std::cout << "Processed " << reader.samples_read() << " samples ("
-                << static_cast<double>(reader.samples_read()) / params.sampling_freq_hz
-                << " s)\n";
+        // std::cout << "Processed " << reader.samples_read() << " samples ("
+        //         << static_cast<double>(reader.samples_read()) / params.sampling_freq_hz
+        //         << " s)\n";
         iLoop++;
     }
     return 0;
