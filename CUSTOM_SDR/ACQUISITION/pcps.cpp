@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <cstdio>
+#include <iostream>
 
 static const float TWO_PI = 2.0f * 3.14159265358979323846f;
 
@@ -64,20 +65,28 @@ void PCPS::set_local_code(const std::vector<float>& code_replica) {
     // Load code into a temporary FFT buffer and compute its FFT
     // Result stored in buf_code_fft_ — conjugated, matching GNSS-SDR's set_local_code
     fftwf_complex* buf_tmp = fftwf_alloc_complex(N_);
+    std::string us_;
 
     for (int i = 0; i < N_; i++) {
-        buf_tmp[i][0] = code_replica[i];
-        buf_tmp[i][1] = 0.0f;
+        buf_tmp[i][0] = 0.0f; //code_replica[i];
+        buf_tmp[i][1] = code_replica[i]; //0.0f;
+        // printf("%.0f - %.0f ", buf_tmp[i][0], buf_tmp[i][1]);
     }
+    // printf("\n");
+    // std::cin >> us_;
 
     fftwf_plan plan_code = fftwf_plan_dft_1d(N_, buf_tmp, buf_code_fft_, FFTW_FORWARD, FFTW_ESTIMATE);
     fftwf_execute(plan_code);
     fftwf_destroy_plan(plan_code);
     fftwf_free(buf_tmp);
 
-    // Conjugate in place — equivalent to GNSS-SDR's volk_32fc_conjugate_32fc
-    for (int i = 0; i < N_; i++)
+    // Conjugate in place
+    for (int i = 0; i < N_; i++) {
         buf_code_fft_[i][1] = -buf_code_fft_[i][1];
+        // printf("%.0f - %.0f ", buf_code_fft_[i][0], buf_code_fft_[i][1]);
+    }
+    // printf("\n");
+    // std::cin >> us_;
 
     printf("[PCPS] local code FFT computed and conjugated\n");
 }
@@ -122,11 +131,14 @@ AcquisitionResult PCPS::search(const std::vector<ProcessedEpoch>& epochs) {
 
     float norm = 1.0f / static_cast<float>(N_ * N_);
 
-    for (int b = 0; b < num_bins; b++) {
-        for (int e = 0; e < config_.non_coh_integrations; e++) {
+    for (int b = 0; b < num_bins; b++) 
+    {
+        for (int e = 0; e < config_.non_coh_integrations; e++) 
+        {
 
             // Apply precomputed Doppler wipeoff into buf_signal_
-            for (int i = 0; i < N_; i++) {
+            for (int i = 0; i < N_; i++) 
+            {
                 std::complex<float> wiped = epochs[e].samples[i] * doppler_wipeoffs_[b][i];
                 buf_signal_[i][0] = wiped.real();
                 buf_signal_[i][1] = wiped.imag();
@@ -137,7 +149,8 @@ AcquisitionResult PCPS::search(const std::vector<ProcessedEpoch>& epochs) {
 
             // Pointwise multiply: signal_fft * conj(code_fft)
             // conj already applied in set_local_code, so just multiply
-            for (int i = 0; i < N_; i++) {
+            for (int i = 0; i < N_; i++) 
+            {
                 float ar = buf_signal_fft_[i][0], ai = buf_signal_fft_[i][1];
                 float br = buf_code_fft_[i][0],   bi = buf_code_fft_[i][1];
                 // (ar + j*ai) * (br + j*bi)  [bi is already negated]
@@ -149,7 +162,8 @@ AcquisitionResult PCPS::search(const std::vector<ProcessedEpoch>& epochs) {
             fftwf_execute(plan_inv_);
 
             // Accumulate magnitude squared (normalized)
-            for (int i = 0; i < N_; i++) {
+            for (int i = 0; i < N_; i++) 
+            {
                 float r  = buf_corr_[i][0] * norm;
                 float im = buf_corr_[i][1] * norm;
                 magnitude_grid_[b][i] += r * r + im * im;
