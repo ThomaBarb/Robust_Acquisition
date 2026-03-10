@@ -1,13 +1,21 @@
 #include "channel.h"
 #include <cstdio>
+#include <iostream>
 
 Channel::Channel(int prn, const SignalParameters& params, const PCPSConfig& pcps_config)
     : prn_(prn), params_(params), pcps_(params, pcps_config),
       acquired_(false), epochs_needed_(pcps_config.non_coh_integrations)
 {
     code_replica_ = PRNGenerator::generate_gps_l1ca(prn, params);
-    pcps_.set_local_code(code_replica_);   // precompute code FFT once
+    pcps_.set_local_code(code_replica_);
     last_result_ = {false, 0.0f, 0, 0.0f};
+
+    // printf("CHANNEL: PRN=%02d\n", prn);
+    // for (auto& code_: code_replica_) {
+    //     printf("%f ", code_);
+    // }
+    // std::string us_;
+    // std::cin >> us_;
 }
 
 
