@@ -15,7 +15,7 @@ int main()
     PCPSConfig pcps_config;
     pcps_config.doppler_max_hz       = 10000.0f;
     pcps_config.doppler_step_hz      = 250.0f;
-    pcps_config.detection_threshold  = 50.f;
+    pcps_config.detection_threshold  = 35.f;
     pcps_config.non_coh_integrations = 1;
 
     // Open binary file

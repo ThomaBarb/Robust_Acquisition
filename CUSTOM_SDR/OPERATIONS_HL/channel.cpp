@@ -27,14 +27,21 @@ bool Channel::is_acquired() const {
     return acquired_;
 }
 
-void Channel::process(const ProcessedEpoch& epoch) {
+void Channel::process(const ProcessedEpoch& epoch) 
+{
     if (!acquired_) {
         run_acquisition(epoch);
     }
     // tracking will be added here once acquired
 }
 
-void Channel::run_acquisition(const ProcessedEpoch& epoch) {
+void Channel::run_acquisition(const ProcessedEpoch& epoch) 
+{
+    // Skip epochs during backoff
+    if (backoff_counter_ > 0) {
+        backoff_counter_--;
+        return;
+    }
     epoch_buffer_.push_back(epoch);
 
     if ((int)epoch_buffer_.size() >= epochs_needed_) {
@@ -42,11 +49,19 @@ void Channel::run_acquisition(const ProcessedEpoch& epoch) {
         epoch_buffer_.clear();
 
         if (last_result_.found) {
-            acquired_ = true;
-            printf("[Channel PRN %d] ACQUIRED — timestamp=%f sample=%lu doppler=%.1f Hz code_phase=%d metric=%.2f\n",
-                   prn_, epoch.timestamp_s, epoch.start_sample_index, last_result_.doppler_hz,
-                   last_result_.code_phase_samples,
-                   last_result_.peak_metric);
+            confirm_count_++;
+            // printf("[Channel PRN %d] time=%f candidate found metric=%.2f confirm=%d/%d\n",
+                //    prn_, epoch.timestamp_s,
+                //    last_result_.peak_metric,
+                //    confirm_count_, confirmations_needed_);
+
+            if (confirm_count_ >= confirmations_needed_) {
+                acquired_ = true;
+                printf("[Channel PRN %d] time=%f CONFIRMED ACQUIRED\n", prn_, epoch.timestamp_s);
+            }
+        } else {
+            confirm_count_ = 0;   // reset on any miss
+            backoff_counter_ = backoff_epochs_; 
         }
     }
 }
