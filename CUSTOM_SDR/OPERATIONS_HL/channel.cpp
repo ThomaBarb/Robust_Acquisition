@@ -43,8 +43,8 @@ void Channel::run_acquisition(const ProcessedEpoch& epoch) {
 
         if (last_result_.found) {
             acquired_ = true;
-            printf("[Channel PRN %d] ACQUIRED — doppler=%.1f Hz code_phase=%d metric=%.2f\n",
-                   prn_, last_result_.doppler_hz,
+            printf("[Channel PRN %d] ACQUIRED — timestamp=%f sample=%lu doppler=%.1f Hz code_phase=%d metric=%.2f\n",
+                   prn_, epoch.timestamp_s, epoch.start_sample_index, last_result_.doppler_hz,
                    last_result_.code_phase_samples,
                    last_result_.peak_metric);
         }

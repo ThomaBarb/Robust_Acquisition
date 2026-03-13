@@ -14,8 +14,8 @@ int main()
 
     PCPSConfig pcps_config;
     pcps_config.doppler_max_hz       = 10000.0f;
-    pcps_config.doppler_step_hz      = 500.0f;
-    pcps_config.detection_threshold  = 10.f;
+    pcps_config.doppler_step_hz      = 250.0f;
+    pcps_config.detection_threshold  = 50.f;
     pcps_config.non_coh_integrations = 1;
 
     // Open binary file
@@ -28,6 +28,8 @@ int main()
         std::cerr << "Failed to open IQ file\n";
         return 1;
     }
+
+    reader.seek_to_sample(0);
 
     Preprocessor  preprocessor(params);
     ChannelManager channel_manager(params, pcps_config);

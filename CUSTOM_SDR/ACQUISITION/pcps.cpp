@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cstdio>
 #include <iostream>
+#include <gnuradio/gr_complex.h>
 
 static const float TWO_PI = 2.0f * 3.14159265358979323846f;
 
@@ -91,12 +92,13 @@ void PCPS::set_local_code(const std::vector<float>& code_replica) {
     printf("[PCPS] local code FFT computed and conjugated\n");
 }
 
-float PCPS::max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_phase) const {
+float PCPS::max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_phase) const 
+{
     float grid_max   = 0.0f;
     best_doppler_idx = 0;
     best_code_phase  = 0;
 
-    // Find global peak
+    // Find global peak — identical to GNSS-SDR's loop
     for (int b = 0; b < static_cast<int>(doppler_grid_.size()); b++) {
         for (int i = 0; i < N_; i++) {
             if (magnitude_grid_[b][i] > grid_max) {
@@ -107,12 +109,16 @@ float PCPS::max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_p
         }
     }
 
-    // Noise floor: use the opposite Doppler bin (180 degrees away), same as GNSS-SDR
-    int num_bins     = static_cast<int>(doppler_grid_.size());
-    int opp_bin      = (best_doppler_idx + num_bins / 2) % num_bins;
+    // Noise floor — exactly matching GNSS-SDR's max_to_input_power_statistic:
+    // accumulate opposite bin / effective_fft_size / 2.0 / num_noncoherent_integrations
+    int num_bins = static_cast<int>(doppler_grid_.size());
+    int opp_bin  = (best_doppler_idx + num_bins / 2) % num_bins;
+
     float noise_floor = std::accumulate(magnitude_grid_[opp_bin].begin(),
                                         magnitude_grid_[opp_bin].end(), 0.0f)
-                        / static_cast<float>(N_);
+                        / static_cast<float>(N_)
+                        / 2.0f
+                        / static_cast<float>(config_.non_coh_integrations);
 
     if (noise_floor < std::numeric_limits<float>::epsilon())
         return 0.0f;
@@ -120,7 +126,8 @@ float PCPS::max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_p
     return grid_max / noise_floor;
 }
 
-AcquisitionResult PCPS::search(const std::vector<ProcessedEpoch>& epochs) {
+AcquisitionResult PCPS::search(const std::vector<ProcessedEpoch>& epochs) 
+{
     AcquisitionResult result = {false, 0.0f, 0, 0.0f};
 
     int num_bins = static_cast<int>(doppler_grid_.size());
@@ -168,8 +175,10 @@ AcquisitionResult PCPS::search(const std::vector<ProcessedEpoch>& epochs) {
                 float im = buf_corr_[i][1] * norm;
                 magnitude_grid_[b][i] += r * r + im * im;
             }
-        }
-    }
+
+        } // End for (int e = 0; e < config_.non_coh_integrations; e++) 
+    
+    } // End for (int b = 0; b < num_bins; b++) 
 
     // Compute test statistic
     int best_doppler_idx = 0;
@@ -181,9 +190,9 @@ AcquisitionResult PCPS::search(const std::vector<ProcessedEpoch>& epochs) {
     result.code_phase_samples = best_code_phase;
     result.peak_metric        = peak_metric;
 
-    printf("[PCPS] peak_metric=%.2f doppler=%.1f Hz code_phase=%d %s\n",
-           peak_metric, result.doppler_hz, best_code_phase,
-           result.found ? "ACQUIRED" : "not found");
+    // printf("[PCPS] peak_metric=%.2f doppler=%.1f Hz code_phase=%d %s\n",
+    //        peak_metric, result.doppler_hz, best_code_phase,
+    //        result.found ? "ACQUIRED" : "not found");
 
     return result;
 }

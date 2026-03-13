@@ -32,6 +32,20 @@ bool IQFileReader::read_epoch(RawEpoch& epoch) {
     return true;
 }
 
+bool IQFileReader::seek_to_sample(uint64_t sample_index) {
+    // Each sample = 2 int16_t (I and Q)
+    std::streamoff byte_offset = sample_index * 2 * sizeof(int16_t);
+    file_.seekg(byte_offset, std::ios::beg);
+    if (!file_.good()) {
+        printf("[IQFileReader] seek to sample %lu failed\n", sample_index);
+        return false;
+    }
+    sample_counter_ = sample_index;
+    printf("[IQFileReader] seeked to sample %lu (byte offset %lu)\n",
+           sample_index, (uint64_t)byte_offset);
+    return true;
+}
+
 void IQFileReader::convert_to_complex(RawEpoch& epoch) {
     int N = params_.samples_per_epoch();
     for (int i = 0; i < N; i++) {

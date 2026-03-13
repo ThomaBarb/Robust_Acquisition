@@ -31,6 +31,8 @@ public:
     bool     is_eof() const;
     uint64_t samples_read() const;
 
+    bool seek_to_sample(uint64_t sample_index);
+
 private:
     std::string          filename_;
     SignalParameters     params_;
