@@ -57,7 +57,10 @@ void Channel::run_acquisition(const ProcessedEpoch& epoch)
 
             if (confirm_count_ >= confirmations_needed_) {
                 acquired_ = true;
-                printf("[Channel PRN %d] time=%f CONFIRMED ACQUIRED\n", prn_, epoch.timestamp_s);
+                printf("[Channel PRN %d] time=%f CONFIRMED ACQUIRED CN0=%f\n",
+                     prn_, epoch.timestamp_s,
+                     last_result_.CN0
+                    );
             }
         } else {
             confirm_count_ = 0;   // reset on any miss

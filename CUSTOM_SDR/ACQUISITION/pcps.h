@@ -10,6 +10,7 @@ struct AcquisitionResult {
     float doppler_hz;
     int   code_phase_samples;
     float peak_metric;
+    float CN0;
 };
 
 struct PCPSConfig {
@@ -54,5 +55,5 @@ private:
     std::vector<std::vector<std::complex<float>>> doppler_wipeoffs_;
 
     void precompute_doppler_wipeoffs();
-    float max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_phase) const;
+    float max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_phase, float& grid_max, float& noise_floor) const;
 };

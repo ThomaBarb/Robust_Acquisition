@@ -10,6 +10,15 @@
 
 static const float TWO_PI = 2.0f * 3.14159265358979323846f;
 
+float estimate_cn0(float peak_power, float noise_floor, float T_coh_s) 
+{
+    float snr_linear = (peak_power - noise_floor) / noise_floor;
+    if (snr_linear <= 0.0f) return 0.0f;
+    float cn0_linear = snr_linear / T_coh_s;
+    float cn0_db_hz  = 10.0f * std::log10(cn0_linear);
+    return cn0_db_hz;
+}
+
 PCPS::PCPS(const SignalParameters& params, const PCPSConfig& config)
     : params_(params), config_(config), N_(params.samples_per_epoch())
 {
@@ -92,9 +101,9 @@ void PCPS::set_local_code(const std::vector<float>& code_replica) {
     printf("[PCPS] local code FFT computed and conjugated\n");
 }
 
-float PCPS::max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_phase) const 
+float PCPS::max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_phase, float& grid_max, float& noise_floor) const 
 {
-    float grid_max   = 0.0f;
+    grid_max   = 0.0f;
     best_doppler_idx = 0;
     best_code_phase  = 0;
 
@@ -114,7 +123,7 @@ float PCPS::max_to_noise_floor_statistic(int& best_doppler_idx, int& best_code_p
     int num_bins = static_cast<int>(doppler_grid_.size());
     int opp_bin  = (best_doppler_idx + num_bins / 2) % num_bins;
 
-    float noise_floor = std::accumulate(magnitude_grid_[opp_bin].begin(),
+    noise_floor = std::accumulate(magnitude_grid_[opp_bin].begin(),
                                         magnitude_grid_[opp_bin].end(), 0.0f)
                         / static_cast<float>(N_)
                         / 2.0f
@@ -181,14 +190,21 @@ AcquisitionResult PCPS::search(const std::vector<ProcessedEpoch>& epochs)
     } // End for (int b = 0; b < num_bins; b++) 
 
     // Compute test statistic
-    int best_doppler_idx = 0;
-    int best_code_phase  = 0;
-    float peak_metric = max_to_noise_floor_statistic(best_doppler_idx, best_code_phase);
+    int best_doppler_idx    = 0;
+    int best_code_phase     = 0;
+    float peak_power        = 0.;
+    float noise_floor       = 0.;
+    float peak_metric = max_to_noise_floor_statistic(best_doppler_idx, best_code_phase, peak_power, noise_floor);
 
-    result.found              = (peak_metric > config_.detection_threshold);
-    result.doppler_hz         = doppler_grid_[best_doppler_idx];
-    result.code_phase_samples = best_code_phase;
-    result.peak_metric        = peak_metric;
+    result.found                = (peak_metric > config_.detection_threshold);
+    result.doppler_hz           = doppler_grid_[best_doppler_idx];
+    result.code_phase_samples   = best_code_phase;
+    result.peak_metric          = peak_metric;
+
+    float T_coh_s = static_cast<float>(params_.epoch_length_ms) / 1000.0f
+                * config_.non_coh_integrations;
+    result.CN0                  = estimate_cn0(peak_power, noise_floor, T_coh_s) ;
+
 
     // printf("[PCPS] peak_metric=%.2f doppler=%.1f Hz code_phase=%d %s\n",
     //        peak_metric, result.doppler_hz, best_code_phase,
