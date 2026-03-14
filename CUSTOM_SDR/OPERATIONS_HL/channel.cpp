@@ -2,13 +2,14 @@
 #include <cstdio>
 #include <iostream>
 
-Channel::Channel(int prn, const SignalParameters& params, const PCPSConfig& pcps_config)
+Channel::Channel(int prn, const SignalParameters& params, 
+    const PCPSConfig& pcps_config, const TrackingConfig& tracking_config)
     : prn_(prn), params_(params), pcps_(params, pcps_config),
-      acquired_(false), epochs_needed_(pcps_config.non_coh_integrations)
+      acquired_(false), epochs_needed_(pcps_config.non_coh_integrations), tracking_(params, tracking_config)
 {
     code_replica_ = PRNGenerator::generate_gps_l1ca(prn, params);
     pcps_.set_local_code(code_replica_);
-    last_result_ = {false, 0.0f, 0, 0.0f};
+    last_acq_result_ = {false, 0.0f, 0, 0.0f};
 
     // printf("CHANNEL: PRN=%02d\n", prn);
     // for (auto& code_: code_replica_) {
@@ -45,10 +46,10 @@ void Channel::run_acquisition(const ProcessedEpoch& epoch)
     epoch_buffer_.push_back(epoch);
 
     if ((int)epoch_buffer_.size() >= epochs_needed_) {
-        last_result_ = pcps_.search(epoch_buffer_);
+        last_acq_result_ = pcps_.search(epoch_buffer_);
         epoch_buffer_.clear();
 
-        if (last_result_.found) {
+        if (last_acq_result_.found) {
             confirm_count_++;
             // printf("[Channel PRN %d] time=%f candidate found metric=%.2f confirm=%d/%d\n",
                 //    prn_, epoch.timestamp_s,
@@ -59,12 +60,31 @@ void Channel::run_acquisition(const ProcessedEpoch& epoch)
                 acquired_ = true;
                 printf("[Channel PRN %d] time=%f CONFIRMED ACQUIRED CN0=%f\n",
                      prn_, epoch.timestamp_s,
-                     last_result_.CN0
+                     last_acq_result_.CN0
                     );
             }
         } else {
             confirm_count_ = 0;   // reset on any miss
             backoff_counter_ = backoff_epochs_; 
         }
+    }
+}
+
+void Channel::run_tracking(const ProcessedEpoch& epoch) 
+{
+    last_tracking_result_ = tracking_.process(epoch);
+
+    // Loss of lock detection — channel level decision
+    if (!last_tracking_result_.locked && tracking_.is_locked() == false) {
+        loss_counter_++;
+        if (loss_counter_ > loss_threshold_) {
+            printf("[Channel PRN %d] LOSS OF LOCK — back to acquisition\n", prn_);
+            acquired_      = false;
+            confirm_count_ = 0;
+            loss_counter_  = 0;
+            backoff_counter_ = backoff_epochs_;
+        }
+    } else {
+        loss_counter_ = 0;
     }
 }

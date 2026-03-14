@@ -78,12 +78,9 @@ void PCPS::set_local_code(const std::vector<float>& code_replica) {
     std::string us_;
 
     for (int i = 0; i < N_; i++) {
-        buf_tmp[i][0] = 0.0f; //code_replica[i];
-        buf_tmp[i][1] = code_replica[i]; //0.0f;
-        // printf("%.0f - %.0f ", buf_tmp[i][0], buf_tmp[i][1]);
+        buf_tmp[i][0] = 0.0f;
+        buf_tmp[i][1] = code_replica[i];
     }
-    // printf("\n");
-    // std::cin >> us_;
 
     fftwf_plan plan_code = fftwf_plan_dft_1d(N_, buf_tmp, buf_code_fft_, FFTW_FORWARD, FFTW_ESTIMATE);
     fftwf_execute(plan_code);
@@ -93,10 +90,7 @@ void PCPS::set_local_code(const std::vector<float>& code_replica) {
     // Conjugate in place
     for (int i = 0; i < N_; i++) {
         buf_code_fft_[i][1] = -buf_code_fft_[i][1];
-        // printf("%.0f - %.0f ", buf_code_fft_[i][0], buf_code_fft_[i][1]);
     }
-    // printf("\n");
-    // std::cin >> us_;
 
     printf("[PCPS] local code FFT computed and conjugated\n");
 }
